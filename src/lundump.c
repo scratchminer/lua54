@@ -280,9 +280,9 @@ static void fchecksize (LoadState *S, size_t size, const char *tname) {
 static void checkHeader (LoadState *S) {
   /* skip 1st char (already read and checked) */
   checkliteral(S, &LUA_SIGNATURE[1], "not a binary chunk");
-  lu_byte version = loadByte(S);
+  unsigned int version = cast_uint(loadUnsigned(S, USHRT_MAX));
   if (version != LUAC_VERSION) {
-	if(((loadByte(S) << 8) | version) != LUAC_LEGACY_VERSION) error(S, "version mismatch");
+	if(version != LUAC_LEGACY_VERSION) error(S, "version mismatch");
   } 
   if (loadByte(S) != LUAC_FORMAT)
 	error(S, "format mismatch");
