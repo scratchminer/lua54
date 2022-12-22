@@ -1,0 +1,7 @@
+# For Lua
+
+*.o
+
+lua
+luac
+liblua.a
