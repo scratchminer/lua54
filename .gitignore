@@ -1,7 +1,7 @@
 # For Lua
 
-src/*.o
+*.o
 
-src/lua
-src/luac
-src/liblua.a
+lua
+luac
+liblua.a
