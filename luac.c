@@ -372,6 +372,9 @@ static void PrintCode(const Proto* f)
 	printf("%d",a);
 	printf(COMMENT); PrintConstant(f,EXTRAARG);
 	break;
+    case OP_LOADBOOL:
+  printf("%d", a);
+  break;
    case OP_LOADFALSE:
 	printf("%d",a);
 	break;

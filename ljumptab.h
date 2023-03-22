@@ -30,9 +30,7 @@ static const void *const disptab[NUM_OPCODES] = {
 &&L_OP_LOADF,
 &&L_OP_LOADK,
 &&L_OP_LOADKX,
-&&L_OP_LOADFALSE,
-&&L_OP_LFALSESKIP,
-&&L_OP_LOADTRUE,
+&&L_OP_LOADBOOL,
 &&L_OP_LOADNIL,
 &&L_OP_GETUPVAL,
 &&L_OP_SETUPVAL,
@@ -107,6 +105,8 @@ static const void *const disptab[NUM_OPCODES] = {
 &&L_OP_CLOSURE,
 &&L_OP_VARARG,
 &&L_OP_VARARGPREP,
-&&L_OP_EXTRAARG
-
+&&L_OP_EXTRAARG,
+&&L_OP_LOADFALSE,
+&&L_OP_LFALSESKIP,
+&&L_OP_LOADTRUE,
 };

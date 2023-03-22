@@ -41,7 +41,7 @@ CWARNSC= -Wdeclaration-after-statement \
 	-Wold-style-definition \
 
 
-CWARNS= $(CWARNSCPP) $(CWARNSC) $(CWARNGCC)
+CWARNS= $(CWARNSCPP) $(CWARNSC)
 
 # Some useful compiler options for internal tests:
 # -DLUAI_ASSERT turns on all assertions inside Lua.

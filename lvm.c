@@ -1181,6 +1181,11 @@ void luaV_execute (lua_State *L, CallInfo *ci) {
         setobj2s(L, ra, rb);
         vmbreak;
       }
+      vmcase(OP_LOADBOOL) {
+        GETARG_B(i) ? setbtvalue(s2v(ra)) : setbfvalue(s2v(ra));
+        if (GETARG_C(i)) pc++;  /* skip next instruction (if C) */
+        vmbreak;
+      }
       vmcase(OP_LOADFALSE) {
         setbfvalue(s2v(ra));
         vmbreak;

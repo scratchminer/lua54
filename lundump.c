@@ -36,6 +36,7 @@ typedef struct {
   const char *name;
 } LoadState;
 
+static int compatMode;
 
 static l_noret error (LoadState *S, const char *why) {
   luaO_pushfstring(S->L, "%s: bad binary format (%s)", S->name, why);
@@ -159,27 +160,51 @@ static void loadConstants (LoadState *S, Proto *f) {
   for (i = 0; i < n; i++) {
     TValue *o = &f->k[i];
     int t = loadByte(S);
-    switch (t) {
-      case LUA_VNIL:
-        setnilvalue(o);
-        break;
-      case LUA_VFALSE:
-        setbfvalue(o);
-        break;
-      case LUA_VTRUE:
-        setbtvalue(o);
-        break;
-      case LUA_VNUMFLT:
-        setfltvalue(o, loadNumber(S));
-        break;
-      case LUA_VNUMINT:
-        setivalue(o, loadInteger(S));
-        break;
-      case LUA_VSHRSTR:
-      case LUA_VLNGSTR:
-        setsvalue2n(S->L, o, loadString(S, f));
-        break;
-      default: lua_assert(0);
+    if (compatMode) {
+      switch (t) {
+        case LUA_VNIL:
+          setnilvalue(o);
+          break;
+        case LUA_TBOOLEAN:
+          loadByte(S) ? setbtvalue(o) : setbfvalue(o);
+          break;
+        case LUA_VNUMFLT:
+          setfltvalue(o, loadNumber(S));
+          break;
+        case LUA_VNUMINT:
+        case LUA_VNUMINT_LEGACY:
+          setivalue(o, loadInteger(S));
+          break;
+        case LUA_VSHRSTR:
+        case LUA_VLNGSTR:
+          setsvalue2n(S->L, o, loadString(S, f));
+          break;
+        default: lua_assert(0);
+      }
+    }
+    else {
+      switch (t) {
+        case LUA_VNIL:
+          setnilvalue(o);
+          break;
+        case LUA_VFALSE:
+          setbfvalue(o);
+          break;
+        case LUA_VTRUE:
+          setbtvalue(o);
+          break;
+        case LUA_VNUMFLT:
+          setfltvalue(o, loadNumber(S));
+          break;
+        case LUA_VNUMINT:
+          setivalue(o, loadInteger(S));
+          break;
+        case LUA_VSHRSTR:
+        case LUA_VLNGSTR:
+          setsvalue2n(S->L, o, loadString(S, f));
+          break;
+        default: lua_assert(0);
+      }
     }
   }
 }
@@ -282,8 +307,12 @@ static void checkHeader (LoadState *S) {
   checkliteral(S, &LUA_SIGNATURE[1], "not a binary chunk");
   lu_byte version = loadByte(S);
   if (version != LUAC_VERSION) {
-	if(((loadByte(S) << 8) | version) != LUAC_LEGACY_VERSION) error(S, "version mismatch");
-  } 
+	  if(((loadByte(S) << 7) | version) != LUAC_LEGACY_VERSION) error(S, "version mismatch");
+    else compatMode = 1;
+  }
+  else {
+    compatMode = 0;
+  }
   if (loadByte(S) != LUAC_FORMAT)
 	error(S, "format mismatch");
   checkliteral(S, LUAC_DATA, "corrupted chunk");
