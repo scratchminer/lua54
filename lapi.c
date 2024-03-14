@@ -731,6 +731,13 @@ LUA_API void lua_createtable (lua_State *L, int narray, int nrec) {
 }
 
 
+LUA_API void lua_createcopytable (lua_State *L, int idx) {
+  Table *t;
+  t = gettable(L, idx);
+  lua_createtable(L, t->alimit, 1 << t->lsizenode);
+}
+
+
 LUA_API int lua_getmetatable (lua_State *L, int objindex) {
   const TValue *obj;
   Table *mt;

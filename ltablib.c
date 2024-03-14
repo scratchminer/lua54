@@ -406,6 +406,127 @@ static int sort (lua_State *L) {
   return 0;
 }
 
+static int getsize (lua_State *L) {
+  lua_Integer arrsz;
+  lua_Integer hashsz;
+  lua_gettablesize(L, 1, &arrsz, &hashsz);
+  lua_pushinteger(L, arrsz);
+  lua_pushinteger(L, hashsz);
+  return 2;
+}
+
+static int create (lua_State *L) {
+  lua_Integer arrsz = lua_tointeger(L, 1);
+  lua_Integer hashsz = lua_tointeger(L, 2);
+  lua_createtable(L, arrsz, hashsz);
+  return 1;
+}
+
+static int dodeepcopy (lua_State *L, int idx) {
+  if (lua_type(L, idx) != LUA_TTABLE) {
+    return luaL_error("The argument passed to table.deepcopy() must be a table (argument passed was a %s)", lua_typename(L, lua_type(L, idx)));
+  }
+  lua_checkstack(L, 5);
+  lua_createcopytable(L, idx);
+  lua_pushnil(L);
+  while (lua_next(L, idx)) {
+    lua_pushvalue(L, -2);
+    if (lua_type(L, -2) == LUA_TTABLE) {
+      dodeepcopy(L, lua_gettop(L) - 1);
+    }
+    else {
+      lua_pushvalue(L, -2);
+    }
+    lua_settable(L, -5);
+    lua_settop(L, -2);
+  }
+  return 1;
+}
+
+static int deepcopy (lua_State *L) {
+  return dodeepcopy(L, 1);
+}
+
+static int indexOfElement (lua_State *L) {
+  lua_Number n = 0;
+  const char *s;
+  void *p;
+  int ttarget;
+  if (lua_gettop(L) < 2 || (lua_type(L, 1) != LUA_TTABLE)) {
+    lua_pushnil(L);
+    return 1;
+  }
+  ttarget = lua_type(L, 2);
+  switch(ttarget) {
+    case LUA_TNUMBER: {
+      n = lua_tonumber(L, 2);
+      s = NULL;
+      p = NULL;
+      break;
+    }
+    case LUA_TSTRING: {
+      s = lua_tostring(L, 2);
+      p = NULL;
+      break;
+    }
+    case LUA_TTABLE: case LUA_TUSERDATA: {
+      s = NULL;
+      p = lua_topointer(L, 2);
+      break;
+    }
+    default:
+      return luaL_error(L, "indexOfElement can not check for elements of type %s", lua_typename(ttarget));
+  }
+  lua_settop(L, -2);
+  lua_rawgeti(L, -1, 1);
+  int tcurrent = lua_type(L, -1);
+  for (int i = 1; tcurrent != LUA_TNIL; i++) {
+    if (tcurrent == ttarget) {
+      switch(ttarget) {
+        case LUA_TNUMBER: {
+          if (lua_tonumber(L, -1) == n) {
+            lua_settop(L, i);
+            lua_pushinteger(L, i);
+            return 1;
+          }
+          break;
+        }
+        case LUA_TSTRING: {
+          if (strcmp(lua_tostring(L, -1), s) == 0) {
+            lua_settop(L, i);
+            lua_pushinteger(L, i);
+            return 1;
+          }
+          break;
+        }
+        case LUA_TTABLE: case LUA_TUSERDATA: {
+          if (lua_topointer(L, -1) == p) {
+            lua_settop(L, i);
+            lua_pushinteger(L, i);
+            return 1;
+          }
+          break;
+        }
+      }
+    }
+    lua_settop(L, -2);
+    lua_rawgeti(L, -1, 1);
+    tcurrent = lua_type(L, -1);
+  }
+}
+
+static int shallowcopy (lua_State *L) {
+  if (lua_type(L, 2) != LUA_TTABLE)
+    lua_createcopytable(L, 1);
+  lua_pushnil(L);
+  while (lua_next(L, 1)) {
+    lua_pushvalue(L, -2);
+    lua_rotate(L, -2, 1);
+    lua_settable(L, -4);
+  }
+  return 1;
+}
+
 /* }====================================================== */
 
 
@@ -417,6 +538,11 @@ static const luaL_Reg tab_funcs[] = {
   {"remove", tremove},
   {"move", tmove},
   {"sort", sort},
+  {"getsize", getsize},
+  {"create", create},
+  {"deepcopy", deepcopy},
+  {"indexOfElement", indexOfElement},
+  {"shallowcopy", shallowcopy},
   {NULL, NULL}
 };
 
