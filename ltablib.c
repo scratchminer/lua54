@@ -424,7 +424,7 @@ static int create (lua_State *L) {
 
 static int dodeepcopy (lua_State *L, int idx) {
   if (lua_type(L, idx) != LUA_TTABLE) {
-    return luaL_error("The argument passed to table.deepcopy() must be a table (argument passed was a %s)", lua_typename(L, lua_type(L, idx)));
+    return luaL_error(L, "The argument passed to table.deepcopy() must be a table (argument passed was type %s)", lua_typename(L, lua_type(L, idx)));
   }
   lua_checkstack(L, 5);
   lua_createcopytable(L, idx);
@@ -450,8 +450,9 @@ static int deepcopy (lua_State *L) {
 static int indexOfElement (lua_State *L) {
   lua_Number n = 0;
   const char *s;
-  void *p;
-  int ttarget;
+  const void *p;
+  int i;
+  int tcurrent, ttarget;
   if (lua_gettop(L) < 2 || (lua_type(L, 1) != LUA_TTABLE)) {
     lua_pushnil(L);
     return 1;
@@ -475,12 +476,13 @@ static int indexOfElement (lua_State *L) {
       break;
     }
     default:
-      return luaL_error(L, "indexOfElement can not check for elements of type %s", lua_typename(ttarget));
+      return luaL_error(L, "indexOfElement can not check for elements of type %s", lua_typename(L, ttarget));
   }
   lua_settop(L, -2);
   lua_rawgeti(L, -1, 1);
-  int tcurrent = lua_type(L, -1);
-  for (int i = 1; tcurrent != LUA_TNIL; i++) {
+  tcurrent = lua_type(L, -1);
+  i = 1;
+  while (tcurrent != LUA_TNIL) {
     if (tcurrent == ttarget) {
       switch(ttarget) {
         case LUA_TNUMBER: {
@@ -510,9 +512,11 @@ static int indexOfElement (lua_State *L) {
       }
     }
     lua_settop(L, -2);
-    lua_rawgeti(L, -1, 1);
+    lua_rawgeti(L, -1, ++i);
     tcurrent = lua_type(L, -1);
   }
+  lua_pushnil(L);
+  return 1;
 }
 
 static int shallowcopy (lua_State *L) {

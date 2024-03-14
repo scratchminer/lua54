@@ -734,7 +734,20 @@ LUA_API void lua_createtable (lua_State *L, int narray, int nrec) {
 LUA_API void lua_createcopytable (lua_State *L, int idx) {
   Table *t;
   t = gettable(L, idx);
-  lua_createtable(L, t->alimit, 1 << t->lsizenode);
+  lua_createtable(L, t->alimit, 1 << (t->lsizenode));
+}
+
+
+LUA_API void lua_gettablesize (lua_State *L, int idx, int *arrsz, int *hashsz) {
+  Table *t;
+  t = gettable(L, idx);
+  *arrsz = t->alimit;
+  if (isempty(gval(gnode(t, 0)))) {
+    *hashsz = 0;
+  }
+  else {
+    *hashsz = 1 << (t->lsizenode);
+  }
 }
 
 
