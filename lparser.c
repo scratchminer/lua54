@@ -1216,6 +1216,17 @@ static BinOpr getbinopr (int op) {
     case TK_GE: return OPR_GE;
     case TK_AND: return OPR_AND;
     case TK_OR: return OPR_OR;
+    case TK_PLUSEQ: return OPR_ADD;
+    case TK_MINUSEQ: return OPR_SUB;
+    case TK_MULTEQ: return OPR_MUL;
+    case TK_POWEQ: return OPR_POW;
+    case TK_DIVEQ: return OPR_DIV;
+    case TK_IDIVEQ: return OPR_IDIV;
+    case TK_MODEQ: return OPR_MOD;
+    case TK_BANDEQ: return OPR_BAND;
+    case TK_BOREQ: return OPR_BOR;
+    case TK_SHLEQ: return OPR_SHL;
+    case TK_SHREQ: return OPR_SHR;
     default: return OPR_NOBINOPR;
   }
 }
@@ -1355,12 +1366,55 @@ static void check_conflict (LexState *ls, struct LHS_assign *lh, expdesc *v) {
   }
 }
 
+static void compound_assignment(LexState *ls, expdesc* v) {
+  BinOpr op = getbinopr(ls->t.token);
+  FuncState * fs=ls->fs;
+  int tolevel=fs->nactvar;
+  int old_free=fs->freereg;
+  expdesc e, infix;
+  int line=ls->linenumber;
+  int nextra, i;
+  lu_byte top;
+  luaX_next(ls);
+  
+  /* create temporary local variables to lock up any registers needed
+  ** by indexed lvalues. */
+  top = fs->nactvar;
+  /* protect both the table and index result registers,
+  ** ensuring that they won't be overwritten prior to the
+  ** storevar calls. */
+  if (vkisindexed(v->k)) {
+    if (v->u.ind.t>=top)
+      top = v->u.ind.t+1;
+    if (v->k == VINDEXED && v->u.ind.idx >= top)
+      top = v->u.ind.idx+1;
+  }
+  nextra = top-fs->nactvar;
+  if (nextra) {
+    for (i=0;i<nextra;i++) {
+      new_localvarliteral(ls, "(temp)");
+    }
+    adjustlocalvars(ls, nextra);
+  }
+
+  infix = *v;
+  luaK_infix(fs, op, &infix);
+  expr(ls, &e);
+  luaK_posfix(fs, op, &infix, &e, line);
+  luaK_storevar(fs, v, &infix);
+  removevars(fs,tolevel);
+
+  if(old_free<fs->freereg) {
+    fs->freereg=old_free;
+  }
+}
+
 /*
 ** Parse and compile a multiple assignment. The first "variable"
 ** (a 'suffixedexp') was already read by the caller.
 **
 ** assignment -> suffixedexp restassign
-** restassign -> ',' suffixedexp restassign | '=' explist
+** restassign -> ',' suffixedexp restassign | '=' explist | opeq expr
 */
 static void restassign (LexState *ls, struct LHS_assign *lh, int nvars) {
   expdesc e;
@@ -1376,10 +1430,8 @@ static void restassign (LexState *ls, struct LHS_assign *lh, int nvars) {
     restassign(ls, &nv, nvars+1);
     leavelevel(ls);
   }
-  else {  /* restassign -> '=' explist */
-    int nexps;
-    checknext(ls, '=');
-    nexps = explist(ls, &e);
+  else if (testnext(ls, '=')) {  /* restassign -> '=' explist */
+    int nexps = explist(ls, &e);
     if (nexps != nvars)
       adjust_assign(ls, nvars, nexps, &e);
     else {
@@ -1387,6 +1439,11 @@ static void restassign (LexState *ls, struct LHS_assign *lh, int nvars) {
       luaK_storevar(ls->fs, &lh->v, &e);
       return;  /* avoid default */
     }
+  }
+  else if (ls->t.token >= TK_PLUSEQ && ls->t.token <= TK_BOREQ) { /* restassign -> opeq expr */
+    check_condition(ls, nvars == 1, "compound assignment not allowed on tuples");
+    compound_assignment(ls,&lh->v);
+    return;
   }
   init_exp(&e, VNONRELOC, ls->fs->freereg-1);  /* default assignment */
   luaK_storevar(ls->fs, &lh->v, &e);
@@ -1826,7 +1883,7 @@ static void exprstat (LexState *ls) {
   FuncState *fs = ls->fs;
   struct LHS_assign v;
   suffixedexp(ls, &v.v);
-  if (ls->t.token == '=' || ls->t.token == ',') { /* stat -> assignment ? */
+  if (ls->t.token == '=' || ls->t.token == ',' || (ls->t.token >= TK_PLUSEQ && ls->t.token <= TK_BOREQ)) { /* stat -> assignment ? */
     v.prev = NULL;
     restassign(ls, &v, 1);
   }

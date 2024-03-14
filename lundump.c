@@ -303,9 +303,10 @@ static void fchecksize (LoadState *S, size_t size, const char *tname) {
 #define checksize(S,t)	fchecksize(S,sizeof(t),#t)
 
 static void checkHeader (LoadState *S) {
+  lu_byte version;
   /* skip 1st char (already read and checked) */
   checkliteral(S, &LUA_SIGNATURE[1], "not a binary chunk");
-  lu_byte version = loadByte(S);
+  version = loadByte(S);
   if (version != LUAC_VERSION) {
 	  if(((loadByte(S) << 7) | version) != LUAC_LEGACY_VERSION) error(S, "version mismatch");
     else compatMode = 1;
